@@ -28,16 +28,42 @@ SDL_Surface* gScreenSurface = NULL;
 //The image we will load and show on the screen
 SDL_Surface* gHelloWorld = NULL;
 
+//The image we will load and show on the screen
+SDL_Surface* gLogo = NULL;
+
+//The text we will load and show on the screen
+SDL_Surface* gText = NULL;
+
+//The surface will be converted as texture
+SDL_Texture* gText_t = NULL;
+
 //The surface will be converted as texture
 SDL_Texture* gTexture = NULL;
+
+//The surface will be converted as texture
+SDL_Texture* gLogo_t = NULL;
 
 //The player we will move on the screen
 SDL_Rect player;
 
+//Game logo
+SDL_Rect logo;
+
+//Text
+SDL_Rect gText_r;
+
 //The renderer
 SDL_Renderer* gRenderer = NULL;
 
-//TTF_Font* font = TTF_OpenFont("arial.ttf", 25);
+TTF_Font* font = NULL;
+
+
+char* text;
+char* composition;
+Sint32 cursor;
+Sint32 selection_len;
+
+
 
 bool init()
 {
@@ -53,7 +79,7 @@ bool init()
 	else
 	{
 		//Create window
-		gWindow = SDL_CreateWindow("SDL Tutorial", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
+		gWindow = SDL_CreateWindow("Escape from ESGI", SDL_WINDOWPOS_UNDEFINED, SDL_WINDOWPOS_UNDEFINED, SCREEN_WIDTH, SCREEN_HEIGHT, SDL_WINDOW_SHOWN);
 		if (gWindow == NULL)
 		{
 			printf("Window could not be created! SDL_Error: %s\n", SDL_GetError());
@@ -108,6 +134,62 @@ bool loadMedia()
 		success = false;
 	}
 
+
+	//Load splash image
+	gLogo = IMG_Load("res\\logo2.png");
+	if (gLogo == NULL)
+	{
+		printf("Unable to load image. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+	//Load the image data into the hardware's memory
+	gLogo_t = SDL_CreateTextureFromSurface(gRenderer, gLogo);
+	SDL_FreeSurface(gLogo);
+	if (!gLogo_t)
+	{
+		printf("Error creating texture. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+
+	if (TTF_Init() < 0) 
+	{
+		printf("Error TTF_Init:  %s\n", SDL_GetError());
+	}
+
+
+	//Loading font
+	font = TTF_OpenFont("res\\arial.ttf", 25);
+	if (!font)
+	{
+		printf("Error loading font:  %s\n", SDL_GetError());
+		return false;
+	}
+
+	text = "coucou";
+
+	SDL_Color foreground = { 0, 0, 0 };
+	gText = TTF_RenderText_Solid(font, text, foreground);
+	if (gText == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+	gText_r.x = 0;
+	gText_r.y = 0;
+	gText_r.w = gText->w;
+	gText_r.h = gText->h;
+	
+
+	gText_t = SDL_CreateTextureFromSurface(gRenderer, gText);
+	if (gText_t == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+
 	return success;
 }
 
@@ -133,6 +215,8 @@ int main(int argc, char* args[])
 	player.y = SCREEN_HEIGHT/2 - (player.h /2);
 
 
+
+
 	//Start up SDL and create window
 	if (!init())
 	{
@@ -152,6 +236,8 @@ int main(int argc, char* args[])
 			//Event handler
 			SDL_Event e;
 
+			// S
+			SDL_StartTextInput();
 
 
 			//While application is running
@@ -206,6 +292,10 @@ int main(int argc, char* args[])
 					break;
 				}
 
+
+
+				
+
 				//clear the window
 				SDL_RenderClear(gRenderer);
 
@@ -219,6 +309,18 @@ int main(int argc, char* args[])
 
 				// Render our "player"
 				SDL_RenderFillRect(gRenderer, &player);
+
+
+				// Add game logo 
+				logo.x = (SCREEN_WIDTH / 2) - (logo.w / 2);
+				logo.y = (SCREEN_HEIGHT / 2) - (logo.h / 2);
+				SDL_QueryTexture(gLogo_t, NULL, NULL, &logo.w, &logo.h);
+				SDL_RenderCopy(gRenderer, gLogo_t, NULL, &logo);
+
+
+				// Add text
+				SDL_RenderCopy(gRenderer, gText_t, NULL, &gText_r);
+
 
 
 				SDL_RenderPresent(gRenderer);     
