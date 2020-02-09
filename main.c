@@ -5,81 +5,20 @@
 #include <SDL_image.h>
 #include <SDL_ttf.h>
 #include <SDL_mixer.h>
-
-//Screen dimension constants
-const int SCREEN_WIDTH = 1280;
-const int SCREEN_HEIGHT = 720;
+#include <string.h>
+#include "game.h"
 
 
-// Audio settings
-const uint8_t MONO = 1;
-const uint8_t STEREO = 2;
-static Uint8* audio_chunk;
-static Uint32 audio_len;
-static Uint8* audio_pos;
-Mix_Chunk* blocked = NULL;
 
+char start[32] = "START";
+char* option = "OPTIONS";
+char* hof = "SCORES";
+char* quit = "EXIT";
 
-//Starts up SDL and creates window
-bool init();
-
-//Loads media
-bool loadMedia();
-
-//Frees media and shuts down SDL
-void close();
-
-void fill_audio(void* udata, Uint8* stream, int len);
-
-
-//The window we'll be rendering to
-SDL_Window* gWindow = NULL;
-
-//The surface contained by the window
-SDL_Surface* gScreenSurface = NULL;
-
-//The image we will load and show on the screen
-SDL_Surface* gHelloWorld = NULL;
-
-//The image we will load and show on the screen
-SDL_Surface* gLogo = NULL;
-
-//The text we will load and show on the screen
-SDL_Surface* gText = NULL;
-
-//The surface will be converted as texture
-SDL_Texture* gText_t = NULL;
-
-//The surface will be converted as texture
-SDL_Texture* gTexture = NULL;
-
-//The surface will be converted as texture
-SDL_Texture* gLogo_t = NULL;
-
-//The player we will move on the screen
-SDL_Rect player;
-
-//The audio spec
-SDL_AudioSpec Output_audio;
-SDL_AudioSpec audioBufferSpec;
-
-//Game logo
-SDL_Rect logo;
-
-//Text
-SDL_Rect gText_r;
-
-//The renderer
-SDL_Renderer* gRenderer = NULL;
-
-TTF_Font* font = NULL;
-
-
-char* text;
 char* composition;
 Sint32 cursor;
 Sint32 selection_len;
-
+void loadTextures();
 
 
 bool init()
@@ -120,6 +59,7 @@ bool init()
 			{
 				// Set size of renderer to the same as window
 				SDL_RenderSetLogicalSize(gRenderer, SCREEN_WIDTH, SCREEN_HEIGHT);
+
 
 				//Initialisation de SDL_mixer
 				if (Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, STEREO, 4096) == -1)
@@ -175,6 +115,33 @@ bool loadMedia()
 		success = false;
 	}
 
+	//Load button image
+	gButton = IMG_Load("res\\blue_button.png");
+	if (gButton == NULL)
+	{
+		printf("Unable to load image. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+	//Load the button image data into the hardware's memory
+	gButton_t_start = SDL_CreateTextureFromSurface(gRenderer, gButton);
+	gButton_t_option = SDL_CreateTextureFromSurface(gRenderer, gButton);
+	gButton_t_hof = SDL_CreateTextureFromSurface(gRenderer, gButton);
+	gButton_t_quit = SDL_CreateTextureFromSurface(gRenderer, gButton);
+
+	SDL_SetTextureAlphaMod(gButton_t_start, ALPHA_MEDIUM);
+	SDL_SetTextureAlphaMod(gButton_t_option, ALPHA_MEDIUM);
+	SDL_SetTextureAlphaMod(gButton_t_hof, ALPHA_MEDIUM);
+	SDL_SetTextureAlphaMod(gButton_t_quit, ALPHA_MEDIUM);
+
+	SDL_FreeSurface(gButton);
+
+	if (!gButton_t_start || !gButton_t_option || !gButton_t_hof || !gButton_t_quit)
+	{
+		printf("Error creating texture. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
 
 	if (TTF_Init() < 0) 
 	{
@@ -190,40 +157,88 @@ bool loadMedia()
 		return false;
 	}
 
-	text = "coucou";
 
 	SDL_Color foreground = { 0, 0, 0 };
-	gText = TTF_RenderText_Solid(font, text, foreground);
+	gText = TTF_RenderText_Solid(font, start, foreground);
 	if (gText == NULL)
 	{
 		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
 		success = false;
 	}
-	gText_r.x = 0;
-	gText_r.y = 0;
-	gText_r.w = gText->w;
-	gText_r.h = gText->h;
+	t_Start.w = gText->w;
+	t_Start.h = gText->h;
 	
 
-	gText_t = SDL_CreateTextureFromSurface(gRenderer, gText);
-	if (gText_t == NULL)
+	gStart_t = SDL_CreateTextureFromSurface(gRenderer, gText);
+	if (gStart_t == NULL)
 	{
 		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
 		success = false;
 	}
 
 
-	// Setting up audio properties
-	Output_audio.freq = 22050;
-	Output_audio.format = AUDIO_S16;
-	Output_audio.channels = STEREO;
-	Output_audio.samples = 1024;
-	Output_audio.callback = fill_audio;
-	Output_audio.userdata = NULL;
+	gText = TTF_RenderText_Solid(font, option, foreground);
+	if (gText == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+	t_Option.w = gText->w;
+	t_Option.h = gText->h;
+
+
+	gOption_t = SDL_CreateTextureFromSurface(gRenderer, gText);
+	if (gOption_t == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+	//Text Hof
+
+	gText = TTF_RenderText_Solid(font, hof, foreground);
+	if (gText == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+	t_Hof.w = gText->w;
+	t_Hof.h = gText->h;
+
+
+	gHof_t = SDL_CreateTextureFromSurface(gRenderer, gText);
+	if (gHof_t == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+	
+	//Text Quit
+
+	gText = TTF_RenderText_Solid(font, quit, foreground);
+	if (gText == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+	t_Quit.w = gText->w;
+	t_Quit.h = gText->h;
+
+
+	gQuit_t = SDL_CreateTextureFromSurface(gRenderer, gText);
+	if (gQuit_t == NULL)
+	{
+		printf("Unable to load font surface. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
 
 
 	// Load audio files
 	blocked = Mix_LoadWAV("res\\blocked.wav");;
+	Mix_Volume(-1, MIX_MAX_VOLUME / 4);
+
+
 	if (blocked == NULL)
 	{
 		printf("Unable to load sounds. SDL Error: %s\n", SDL_GetError());
@@ -249,19 +264,81 @@ void close()
 	SDL_Quit();
 }
 
-
-void fill_audio(void* udata, Uint8* stream, int len)
+void loadTextures()
 {
-	/* Only play if we have data left */
-	if (audio_len == 0)
-		return;
 
-	/* Mix as much data as possible */
-	len = (len > audio_len ? audio_len : len);
-	SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
-	audio_pos += len;
-	audio_len -= len;
+
+	//clear the window
+	SDL_RenderClear(gRenderer);
+
+
+	//draw the texture to the window
+	SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
+
+
+	// Change color to blue!
+	SDL_SetRenderDrawColor(gRenderer, 0, 0, 255, 255);
+
+	// Render our "player"
+	SDL_RenderFillRect(gRenderer, &player);
+
+
+	// Add game logo 
+	logo.x = (SCREEN_WIDTH / 2) - (logo.w / 2);
+	logo.y = (SCREEN_HEIGHT / 2) - (logo.h);
+
+
+	// Add buttons 
+	button_start.x = (SCREEN_WIDTH / 2) - (button_start.w / 2);
+	button_start.y = logo.y + logo.h + 25;
+
+	button_hof.x = button_start.x;
+	button_hof.y = button_start.y + button_start.h + 20;
+
+	button_option.x = button_hof.x;
+	button_option.y = button_hof.y + button_hof.h + 20;
+
+	button_quit.x = button_option.x;
+	button_quit.y = button_option.y + button_option.h + 20;
+
+	t_Start.x = button_start.x + (button_start.w / 2) - (t_Start.w / 2);
+	t_Start.y = button_start.y + (button_start.h / 2) - (t_Start.h / 2);
+
+
+	t_Option.x = button_option.x + (button_option.w / 2) - (t_Option.w / 2);
+	t_Option.y = button_option.y + (button_option.h / 2) - (t_Option.h / 2);
+
+	t_Hof.x = button_hof.x + (button_hof.w / 2) - (t_Hof.w / 2);
+	t_Hof.y = button_hof.y + (button_hof.h / 2) - (t_Hof.h / 2);
+
+	t_Quit.x = button_quit.x + (button_quit.w / 2) - (t_Quit.w / 2);
+	t_Quit.y = button_quit.y + (button_quit.h / 2) - (t_Quit.h / 2);
+
+	SDL_QueryTexture(gLogo_t, NULL, NULL, &logo.w, &logo.h);
+	SDL_RenderCopy(gRenderer, gLogo_t, NULL, &logo);
+
+	SDL_QueryTexture(gButton_t_start, NULL, NULL, &button_start.w, &button_start.h);
+	SDL_RenderCopy(gRenderer, gButton_t_start, NULL, &button_start);
+
+
+	SDL_QueryTexture(gButton_t_option, NULL, NULL, &button_option.w, &button_option.h);
+	SDL_RenderCopy(gRenderer, gButton_t_option, NULL, &button_option);
+
+	SDL_QueryTexture(gButton_t_hof, NULL, NULL, &button_hof.w, &button_hof.h);
+	SDL_RenderCopy(gRenderer, gButton_t_hof, NULL, &button_hof);
+
+	SDL_QueryTexture(gButton_t_quit, NULL, NULL, &button_quit.w, &button_quit.h);
+	SDL_RenderCopy(gRenderer, gButton_t_quit, NULL, &button_quit);
+
+	// Add text
+	SDL_RenderCopy(gRenderer, gStart_t, NULL, &t_Start);
+	SDL_RenderCopy(gRenderer, gHof_t, NULL, &t_Hof);
+	SDL_RenderCopy(gRenderer, gOption_t, NULL, &t_Option);
+	SDL_RenderCopy(gRenderer, gQuit_t, NULL, &t_Quit);
+
+	SDL_RenderPresent(gRenderer);
 }
+
 
 
 
@@ -271,8 +348,8 @@ int main(int argc, char* args[])
 	// Initlaize our player
 	player.w = 200;
 	player.h = 200;
-	player.x = (SCREEN_WIDTH / 2) - (player.w / 2);
-	player.y = SCREEN_HEIGHT/2 - (player.h /2);
+	player.x = 15;
+	player.y = 15;
 
 
 
@@ -293,11 +370,24 @@ int main(int argc, char* args[])
 		{
 			bool quit = false;
 
+
+
+
+
+
+
+
+
+			SDL_SetTextInputRect(&button_start);
+
+
+
+
+
+
 			//Event handler
 			SDL_Event e;
 
-			// S
-			SDL_StartTextInput();
 
 
 			//While application is running
@@ -328,7 +418,6 @@ int main(int argc, char* args[])
 								SDL_Delay(100);
 								//return 1;
 							}
-
 						}
 						break;
 					case SDLK_DOWN:
@@ -336,17 +425,41 @@ int main(int argc, char* args[])
 						{
 							player.y += 10;
 						}
+						else
+						{
+							if (Mix_PlayChannel(-1, blocked, 0) == -1)
+							{
+								SDL_Delay(100);
+								//return 1;
+							}
+						}
 						break;
 					case SDLK_LEFT:
 						if (player.x > SCREEN_WIDTH-SCREEN_WIDTH)
 						{
 							player.x += -10;
 						}
+						else
+						{
+							if (Mix_PlayChannel(-1, blocked, 0) == -1)
+							{
+								SDL_Delay(100);
+								//return 1;
+							}
+						}
 						break;
 					case SDLK_RIGHT:
 						if (player.x + player.w < SCREEN_WIDTH)
 						{
 							player.x += 10;
+						}
+						else
+						{
+							if (Mix_PlayChannel(-1, blocked, 0) == -1)
+							{
+								SDL_Delay(100);
+								//return 1;
+							}
 						}
 						break;
 					}
@@ -359,44 +472,86 @@ int main(int argc, char* args[])
 						break;
 					}
 					break;
+				case SDL_MOUSEMOTION:
+					if (e.motion.x >= button_start.x && e.motion.x <= (button_start.x + button_start.w) && e.motion.y >= button_start.y && e.motion.y <= (button_start.y + button_start.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_start, ALPHA_HIGH);
+
+					}
+					else if (e.motion.x >= button_option.x && e.motion.x <= (button_option.x + button_option.w) && e.motion.y >= button_option.y && e.motion.y <= (button_option.y + button_option.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_option, ALPHA_HIGH);
+					}
+					else if (e.motion.x >= button_hof.x && e.motion.x <= (button_hof.x + button_hof.w) && e.motion.y >= button_hof.y && e.motion.y <= (button_hof.y + button_hof.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_hof, ALPHA_HIGH);
+					}
+					else if (e.motion.x >= button_quit.x && e.motion.x <= (button_quit.x + button_quit.w) && e.motion.y >= button_quit.y && e.motion.y <= (button_quit.y + button_quit.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_quit, ALPHA_HIGH);
+					}
+					else 
+					{
+						SDL_SetTextureAlphaMod(gButton_t_start, ALPHA_MEDIUM);
+						SDL_SetTextureAlphaMod(gButton_t_option, ALPHA_MEDIUM);
+						SDL_SetTextureAlphaMod(gButton_t_hof, ALPHA_MEDIUM);
+						SDL_SetTextureAlphaMod(gButton_t_quit, ALPHA_MEDIUM);
+					}
+				case SDL_MOUSEBUTTONDOWN:
+					if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_start.x && e.motion.x <= (button_start.x + button_start.w) && e.motion.y >= button_start.y && e.motion.y <= (button_start.y + button_start.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_start, ALPHA_MAX);
+						SDL_StartTextInput();
+						
+					}
+					else if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_option.x && e.motion.x <= (button_option.x + button_option.w) && e.motion.y >= button_option.y && e.motion.y <= (button_option.y + button_option.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_option, ALPHA_MAX);
+					}
+					else if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_hof.x && e.motion.x <= (button_hof.x + button_hof.w) && e.motion.y >= button_hof.y && e.motion.y <= (button_hof.y + button_hof.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_hof, ALPHA_MAX);
+					}
+					else if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_quit.x && e.motion.x <= (button_quit.x + button_quit.w) && e.motion.y >= button_quit.y && e.motion.y <= (button_quit.y + button_quit.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_quit, ALPHA_MAX);
+					}
+					else
+					{
+						//Clic outside buttons
+					}
+				case SDL_MOUSEBUTTONUP:
+					if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_start.x && e.motion.x <= (button_start.x + button_start.w) && e.motion.y >= button_start.y && e.motion.y <= (button_start.y + button_start.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_start, ALPHA_LOW);
+					}
+					else if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_option.x && e.motion.x <= (button_option.x + button_option.w) && e.motion.y >= button_option.y && e.motion.y <= (button_option.y + button_option.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_option, ALPHA_LOW);
+					}
+					else if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_hof.x && e.motion.x <= (button_hof.x + button_hof.w) && e.motion.y >= button_hof.y && e.motion.y <= (button_hof.y + button_hof.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_hof, ALPHA_LOW);
+					}
+					else if (e.button.button == SDL_BUTTON_LEFT && e.motion.x >= button_quit.x && e.motion.x <= (button_quit.x + button_quit.w) && e.motion.y >= button_quit.y && e.motion.y <= (button_quit.y + button_quit.h))
+					{
+						SDL_SetTextureAlphaMod(gButton_t_quit, ALPHA_LOW);
+						SDL_Delay(500);
+						quit = 1;
+					}
+					else
+					{
+						//Clic outside buttons
+					}
 				}
 
+				loadTextures();
 
-
-				
-
-				//clear the window
-				SDL_RenderClear(gRenderer);
-
-
-				//draw the texture to the window
-				SDL_RenderCopy(gRenderer, gTexture, NULL, NULL);
-
-
-				// Change color to blue!
-				SDL_SetRenderDrawColor(gRenderer, 0, 0, 255, 255);
-
-				// Render our "player"
-				SDL_RenderFillRect(gRenderer, &player);
-
-
-				// Add game logo 
-				logo.x = (SCREEN_WIDTH / 2) - (logo.w / 2);
-				logo.y = (SCREEN_HEIGHT / 2) - (logo.h / 2);
-				SDL_QueryTexture(gLogo_t, NULL, NULL, &logo.w, &logo.h);
-				SDL_RenderCopy(gRenderer, gLogo_t, NULL, &logo);
-
-
-				// Add text
-				SDL_RenderCopy(gRenderer, gText_t, NULL, &gText_r);
-
-
-				SDL_RenderPresent(gRenderer);     
+		
 
 				SDL_Delay(1000/100);
 
-				//Update the surface
-				//SDL_UpdateWindowSurface(gWindow);
+
 			}
 		}
 	}
@@ -407,4 +562,3 @@ int main(int argc, char* args[])
 
 	return 0;
 }
-
