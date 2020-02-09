@@ -1,2 +1,3 @@
 ﻿  main.c
+C:\Users\Lucas\Documents\ProjetC\Projet C\main.c(260,13): warning C4018: '>': signed/unsigned mismatch
   ProjetC.vcxproj -> C:\Users\Lucas\Documents\ProjetC\Projet C\Debug\ProjetC.exe

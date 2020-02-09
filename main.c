@@ -4,10 +4,20 @@
 #include <SDL.h>
 #include <SDL_image.h>
 #include <SDL_ttf.h>
+#include <SDL_mixer.h>
 
 //Screen dimension constants
 const int SCREEN_WIDTH = 1280;
 const int SCREEN_HEIGHT = 720;
+
+
+// Audio settings
+const uint8_t MONO = 1;
+const uint8_t STEREO = 2;
+static Uint8* audio_chunk;
+static Uint32 audio_len;
+static Uint8* audio_pos;
+Mix_Chunk* blocked = NULL;
 
 
 //Starts up SDL and creates window
@@ -18,6 +28,9 @@ bool loadMedia();
 
 //Frees media and shuts down SDL
 void close();
+
+void fill_audio(void* udata, Uint8* stream, int len);
+
 
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
@@ -46,6 +59,10 @@ SDL_Texture* gLogo_t = NULL;
 //The player we will move on the screen
 SDL_Rect player;
 
+//The audio spec
+SDL_AudioSpec Output_audio;
+SDL_AudioSpec audioBufferSpec;
+
 //Game logo
 SDL_Rect logo;
 
@@ -71,7 +88,7 @@ bool init()
 	bool success = true;
 
 	//Initialize SDL
-	if (SDL_Init(SDL_INIT_VIDEO) < 0)
+	if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_AUDIO) < 0)
 	{
 		printf("SDL could not initialize! SDL_Error: %s\n", SDL_GetError());
 		success = false;
@@ -104,6 +121,12 @@ bool init()
 				// Set size of renderer to the same as window
 				SDL_RenderSetLogicalSize(gRenderer, SCREEN_WIDTH, SCREEN_HEIGHT);
 
+				//Initialisation de SDL_mixer
+				if (Mix_OpenAudio(22050, MIX_DEFAULT_FORMAT, STEREO, 4096) == -1)
+				{
+					return false;
+				}
+				
 
 			}
 		}
@@ -190,6 +213,24 @@ bool loadMedia()
 	}
 
 
+	// Setting up audio properties
+	Output_audio.freq = 22050;
+	Output_audio.format = AUDIO_S16;
+	Output_audio.channels = STEREO;
+	Output_audio.samples = 1024;
+	Output_audio.callback = fill_audio;
+	Output_audio.userdata = NULL;
+
+
+	// Load audio files
+	blocked = Mix_LoadWAV("res\\blocked.wav");;
+	if (blocked == NULL)
+	{
+		printf("Unable to load sounds. SDL Error: %s\n", SDL_GetError());
+		success = false;
+	}
+
+
 	return success;
 }
 
@@ -202,8 +243,27 @@ void close()
 	gWindow = NULL;
 
 	//Quit SDL subsystems
+	TTF_Quit();
+	Mix_FreeChunk(blocked);
+	Mix_CloseAudio();
 	SDL_Quit();
 }
+
+
+void fill_audio(void* udata, Uint8* stream, int len)
+{
+	/* Only play if we have data left */
+	if (audio_len == 0)
+		return;
+
+	/* Mix as much data as possible */
+	len = (len > audio_len ? audio_len : len);
+	SDL_MixAudio(stream, audio_pos, len, SDL_MIX_MAXVOLUME);
+	audio_pos += len;
+	audio_len -= len;
+}
+
+
 
 int main(int argc, char* args[])
 {
@@ -260,6 +320,15 @@ int main(int argc, char* args[])
 						if (player.y > SCREEN_HEIGHT-SCREEN_HEIGHT)
 						{
 							player.y += -10;
+						}
+						else
+						{
+							if (Mix_PlayChannel(-1, blocked, 0) == -1)
+							{
+								SDL_Delay(100);
+								//return 1;
+							}
+
 						}
 						break;
 					case SDLK_DOWN:
@@ -322,10 +391,9 @@ int main(int argc, char* args[])
 				SDL_RenderCopy(gRenderer, gText_t, NULL, &gText_r);
 
 
-
 				SDL_RenderPresent(gRenderer);     
 
-				SDL_Delay(50);
+				SDL_Delay(1000/100);
 
 				//Update the surface
 				//SDL_UpdateWindowSurface(gWindow);
